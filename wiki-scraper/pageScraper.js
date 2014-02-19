@@ -1,60 +1,88 @@
+//////////////////////////////////////////////////////////////////
+// DEPENDENCIES
+//////////////////////////////////////////////////////////////////
+
 var cheerio = require('cheerio');
 var Promise = require('bluebird');
-var fs = Promise.promisifyAll(require('fs'));
+var fs      = Promise.promisifyAll(require('fs'));
 var request = Promise.promisify(require('request'));
-var _ = require('underscore');
-var path = require('path');
+var _       = require('underscore');
+var path    = require('path');
+var mysql   = require('mysql');
 
-var allPageUrls = [];
+//////////////////////////////////////////////////////////////////
+// GLOBAL VARIABLES
+//////////////////////////////////////////////////////////////////
+
 var totalPagesVisited = 0;
+var urlConnections = {};
 
-//finds all links on a page and submits more requests based on those links
-var getHTML = function(html, counter){
-  var depthCounter = counter || 0;
+//////////////////////////////////////////////////////////////////
+// CONNECTING TO DATABASE
+//////////////////////////////////////////////////////////////////
+
+var connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: ''
+});
+
+//////////////////////////////////////////////////////////////////
+// HELPER FUNCTIONS
+//////////////////////////////////////////////////////////////////
+
+var createHash = function(url){
+    var hash = 0;
+    if (url.length == 0) return hash;
+    for (i = 0; i < url.length; i++) {
+        char = url.charCodeAt(i);
+        hash = ((hash<<5)-hash)+char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+}
+
+
+var getUrlsOnPage = function(html){
   var pageUrls = [];
   var $ = cheerio.load(html);
 
   totalPagesVisited++;
 
-  //gather all links on a page and push to array
   $('#mw-content-text a').each(function(i,link){
     if($(link).attr('href').match(/#/g) === null){
       pageUrls.push("http://en.wikipedia.org" + link.attribs.href)
-      //pageUrls.push(link.attribs.href);
     }
   });
 
-  allPageUrls.concat(pageUrls);
   console.log("NEW PAGE has " + pageUrls.length + " links...");
-
-  //if page is not the bottom level call a request on each of its links
-  // if( depthCounter < 0){
-  //   _.each(pageUrls, function(url){
-  //     request(url)
-  //       .then(function(result){getHTML(result, depthCounter)})
-  //       .catch(function(err){ console.log('error logged!')})
-  //   });
-  // }
-  // depthCounter++;
   return pageUrls;
 }
 
-var urlConnections = {};
+var backLinkChecking = function(arrOfUrls){
+  console.log(_.filter(arrOfUrls, function(url){
+    connection.query('SELECT * FROM urls WHERE url = "' + url + '"')
+  }));
+}
 
-//read from a file, send request to getHTML and
+var exploreUrls = function(urls){
+  return Promise.all(_.map(urls, function(url){
+    return request(url)
+    .then(function(resp){
+      urlConnections[url] = getUrlsOnPage(resp);
+    });
+  }));
+};
+
+
+//////////////////////////////////////////////////////////////////
+// INITIATING SEARCH PROCESS
+//////////////////////////////////////////////////////////////////
+
 fs.readFileAsync(path.join(__dirname, 'testFile.txt'), 'utf8')
   .then(function(contents){ return contents.split(',') })
   .then(function(urls){
-    return Promise.all(_.map(urls, function(url){
-      return request(url)
-      .then(function(resp){
-        return getHTML(resp)})
-        .then(function(urlsOnPage){
-            console.log('url: ', url)
-            urlConnections[url] = urlsOnPage;
-          })
-    }));
-  }).then(function(){fs.appendFile(path.join(__dirname, 'sample.txt'), JSON.stringify(urlConnections))});
-
+    return exploreUrls(urls);
+  }).then(console.log(totalPagesVisited + " pages visited!"));
 
 
