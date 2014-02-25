@@ -72,10 +72,10 @@ var getUrlsOnPage = function(html){
 var backLinkChecking = function(arrOfUrls){
   return Promise.filter(arrOfUrls, function(url){
     return connection.queryAsync('SELECT * FROM urls WHERE url = "' + url + '"').then(function(result){
-      console.log('Querying database...');
+      //console.log('Querying database...');
       return !result[0][0];
     });
-  }).then(function(arr){console.log('DONE FIRST')})
+  })//.then(function(arr){console.log('DONE FIRST')})
   .error(function(err){console.log(err)});
 }
 
@@ -85,10 +85,15 @@ var exploreUrls = function(urls){
     return request(url)
     .then(function(resp){
       var pageUrls = getUrlsOnPage(resp);
-      urlConnections[url] = pageUrls;
+      connection.query('INSERT INTO urls SET ?', {url: url}, function(err, result){
+        console.log('url was added to database!');
+      });
+      //urlConnections[url] = pageUrls;
       return pageUrls;
-    }).then(function(allUrls){exploreUrls(backLinkChecking(allUrls))});
-  }))
+    }).then(function(allUrls){ return backLinkChecking(allUrls) })
+      .then(function(newUrls){ if(totalPagesVisited > 10){ console.log('reached final number');return }
+                               else {exploreUrls(newUrls) }});
+  }));
 }
 
 //////////////////////////////////////////////////////////////////
