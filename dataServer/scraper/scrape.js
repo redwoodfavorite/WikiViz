@@ -60,28 +60,30 @@ var getUrlsOnPage = function(html){
 //returns an array of urls that have not yet been added to the database
 var backLinkChecking = function(arrOfUrls){
   return Promise.filter(arrOfUrls, function(url){
-    return connection.queryAsync('SELECT * FROM urls WHERE url = "' + url + '"').then(function(result){
-      //console.log('Querying database...');
+    return connection.queryAsync('SELECT * FROM urlLinks WHERE url = "' + url + '"').then(function(result){
+      console.log(!result[0][0]);
       return !result[0][0];
     });
-  })//.then(function(arr){console.log('DONE FIRST')})
+  })
   .error(function(err){console.log(err)});
-}
+};
 
 //performs requests for each url in a list and stores each url in database
 var exploreUrls = function(urls){
   return Promise.all(_.map(urls, function(url){
+    console.log(url);
     return request(url)
     .then(function(resp){
       var pageUrls = getUrlsOnPage(resp);
-      connection.query('INSERT INTO urls SET ?', {url: url}, function(err, result){
+      insertToDB(url, pageUrls, );
+      connection.query('INSERT INTO urlLinks SET ?', {url: url}, function(err, result){
+        if (err) { console.log(err) };
         console.log('url was added to database!');
       });
-      //urlConnections[url] = pageUrls;
       return pageUrls;
     }).then(function(allUrls){ return backLinkChecking(allUrls) })
       .then(function(newUrls){ if(totalPagesVisited > 10){ console.log('reached final number');return }
-                               else {exploreUrls(newUrls) }});
+                               else {exploreUrls(NEWUrls) }});
   }));
 }
 
@@ -91,12 +93,12 @@ var exploreUrls = function(urls){
 
 var scrape = function(inputUrl){
   console.log(inputUrl);
-  exploreUrls(inputUrl)
+  exploreUrls([inputUrl])
   .then(function(){
     console.log("DONE");
-  }).error(function(err){
-    console.log(err);
-  });
+  })//.error(function(err){
+    //console.log(err);
+  //});
 }
 
 exports.scrape = scrape;
