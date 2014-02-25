@@ -39,17 +39,6 @@ connection.queryAsync('USE wikiUrls', function(err) {
 // HELPER FUNCTIONS
 //////////////////////////////////////////////////////////////////
 
-//not using this quite yet
-var createHash = function(url){
-    var hash = 0;
-    if (url.length == 0) return hash;
-    for (i = 0; i < url.length; i++) {
-        char = url.charCodeAt(i);
-        hash = ((hash<<5)-hash)+char;
-        hash = hash & hash;
-    }
-    return hash;
-}
 
 //returns a list of all local urls
 var getUrlsOnPage = function(html){
@@ -110,11 +99,3 @@ fs.readFileAsync(path.join(__dirname, 'testFile.txt'), 'utf8')
   }).error(function(err){
     console.log(err);
   });
-
-// fs.readFileAsync(path.join(__dirname, 'testFile.txt'), 'utf8')
-//   .then(function(contents){
-//     return contents.split(',');
-//   }).then(function(urls){
-//     return backLinkChecking(urls);
-//   }).then(function(){console.log('DONE SECOND')});
-
