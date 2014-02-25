@@ -90,6 +90,7 @@ var exploreUrls = function(urls){
 //////////////////////////////////////////////////////////////////
 
 var scrape = function(inputUrl){
+  console.log(inputUrl);
   exploreUrls(inputUrl)
   .then(function(){
     console.log("DONE");
